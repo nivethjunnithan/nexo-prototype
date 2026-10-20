@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="a" x1="8" y1="6" x2="57" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9FFFF0"/>
+      <stop offset=".52" stop-color="#64E2D2"/>
+      <stop offset="1" stop-color="#35AFA4"/>
+    </linearGradient>
+    <radialGradient id="b" cx="0" cy="0" r="1" gradientTransform="matrix(0 43 -43 0 32 10)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#18312F"/>
+      <stop offset="1" stop-color="#0B1113"/>
+    </radialGradient>
+    <filter id="c" x="4" y="3" width="56" height="58" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="18" fill="url(#b)"/>
+  <rect x="3.75" y="3.75" width="56.5" height="56.5" rx="17.25" stroke="url(#a)" stroke-opacity=".36" stroke-width="1.5"/>
+  <path d="M18 45V19l28 26V19" stroke="url(#a)" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5"/>
+  <path d="M18 45V19l28 26V19" stroke="url(#a)" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5" opacity=".42" filter="url(#c)"/>
+  <circle cx="18" cy="19" r="3.5" fill="#D7FFF8"/>
+  <circle cx="46" cy="45" r="3.5" fill="#64E2D2"/>
+  <circle cx="46" cy="19" r="2.5" fill="#A4F3E7"/>
+</svg>
