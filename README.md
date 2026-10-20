@@ -14,7 +14,7 @@
   <img alt="Installable PWA and mobile apps" src="https://img.shields.io/badge/platforms-web%20%7C%20Android%20%7C%20iOS-64e2d2?style=flat&labelColor=101719" />
 </p>
 
-<p align="center"><em>Enter a destination—even a single city name—choose your travel dates, then get a day-by-day plan built around OpenStreetMap place listings and maps, optional Street View links, and a local forecast.</em></p>
+<p align="center"><em>Enter a destination—even a single city name—choose your travel dates, then get a day-by-day plan built around OpenStreetMap map display, Google Maps place-search links, optional Street View links, and a local forecast.</em></p>
 
 ---
 
@@ -31,10 +31,10 @@ The interface is designed to be explored: compare the weather for each day, scan
 | **Trip overview**     | Destination, dates, length, local time zone, planning style, and mapped listing count in one glance.                                             |
 | **Custom itinerary**  | A day-by-day schedule with suggested times, nearby stops, opening-hour-aware picks, map links, and walking routes.                               |
 | **Weather**           | Daily and hourly conditions, temperature and feels-like, rain chance and amount, wind and gusts, humidity, UV, sunrise, and sunset.              |
-| **Places**            | Tables of attractions, museums, parks, and restaurants with addresses and available hours, fees, cuisine, accessibility, contacts, and websites. |
+| **Places**            | Tables of attractions, museums, parks, and restaurants with addresses, cuisine, opening hours, accessibility, and Google Maps place-search links. |
 | **Trip watch**        | Event calendars or date-specific searches, forecast risk cues, and links for weather alerts, transport, and local notices.                       |
 | **Local field guide** | Quick destination-specific searches for local food, neighborhoods, markets, lower-cost activities, day trips, transport, customs, and culture.   |
-| **Maps & navigation** | OpenStreetMap destination and place links with visible attribution, walking directions, and Street View links where imagery is available.        |
+| **Maps & navigation** | OpenStreetMap destination map and walking directions, Google Maps place-search links, and Street View where imagery is available.        |
 | **Useful links**      | Destination maps, restaurant searches, accommodation searches, and transit directions.                                                           |
 
 The dark, responsive interface uses a restrained cyan accent and a custom geometric Nexo logo. Nexo ships as a responsive website, an installable Progressive Web App (PWA), and Capacitor-based Android and iOS app projects from the same web experience.
@@ -131,7 +131,7 @@ The Playwright suite checks keyboard skip navigation, labeled planner fields, WC
 
 ## How the data works
 
-- **OpenStreetMap Nominatim** resolves destinations and searches for nearby attractions, museums, parks, and restaurants. The embedded map and place links use OpenStreetMap with visible attribution.
+- **OpenStreetMap Nominatim** resolves destinations and searches for nearby attractions, museums, parks, and restaurants. The embedded map uses OpenStreetMap with visible attribution; individual venue links open Google Maps search URLs. Restaurant discovery filters major international fast-food chains and ranks other results using cuisine and listing details plus Wikipedia readership where available. This uses open community signals rather than star ratings and does not hardcode favored restaurants.
 - **Street View** is opened as a Google Maps URL at the destination coordinates. Google documents Maps URLs as usable without an API key; imagery depends on local coverage.
 - **Open-Meteo** provides the daily and hourly forecast for the destination coordinates.
 - **City calendars and live search links** help you check events, local experiences, and travel notices for your dates.

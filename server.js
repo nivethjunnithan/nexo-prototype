@@ -70,6 +70,8 @@ async function geocode(query) {
 function normalizeNominatimPlace(item, type) {
   if (!item.name) return null;
   const isFood = type === 'Restaurant';
+  const tags = item.extratags || {};
+  const namedetails = item.namedetails || {};
   return {
     name: item.name,
     type,
@@ -78,10 +80,17 @@ function normalizeNominatimPlace(item, type) {
     osmId: item.osm_id,
     lat: Number(item.lat), lon: Number(item.lon),
     address: item.display_name || null,
-    openingHours: null,
-    website: null,
-    phone: null,
-    cuisine: isFood ? item.type : null,
+    openingHours: tags.opening_hours || null,
+    website: tags.website || null,
+    phone: tags.phone || null,
+    cuisine: isFood ? tags.cuisine || null : null,
+    brand: tags.brand || null,
+    wikidata: tags.wikidata || null,
+    wikipedia: tags.wikipedia || null,
+    wikipediaUrl: tags.wikipedia && /^[a-z-]+:.+/i.test(tags.wikipedia)
+      ? `https://${tags.wikipedia.split(':', 1)[0]}.wikipedia.org/wiki/${encodeURIComponent(tags.wikipedia.split(':').slice(1).join(':').replaceAll(' ', '_'))}`
+      : null,
+    localName: namedetails['name:en'] || item.name,
     fee: null,
     wheelchair: null,
     osmUrl: `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`
@@ -93,14 +102,72 @@ async function getNearbyPlaces(destinationName) {
   const categories = [['attraction', 'Attraction'], ['museums', 'Museum & culture'], ['parks', 'Park & gardens'], ['restaurants', 'Restaurant']];
   for (const [query, type] of categories) {
     const url = new URL(NOMINATIM);
-    url.search = new URLSearchParams({ q: `${query} in ${destinationName}`, format: 'jsonv2', addressdetails: '1', limit: '16' });
+    url.search = new URLSearchParams({ q: `${query} in ${destinationName}`, format: 'jsonv2', addressdetails: '1', extratags: '1', namedetails: '1', limit: type === 'Restaurant' ? '50' : '16' });
     const results = await nominatimJson(url);
     for (const item of results) {
       const place = normalizeNominatimPlace(item, type);
       if (place && Number.isFinite(place.lat) && Number.isFinite(place.lon)) unique.set(`${place.osmType}/${place.osmId}`, place);
     }
   }
-  return [...unique.values()];
+  const places = [...unique.values()];
+  const restaurants = places.filter((place) => place.type === 'Restaurant');
+  if (restaurants.length) {
+    // Use Wikipedia's public search to discover notable local restaurants dynamically.
+    // Resolve only restaurant-like articles missing from the general OSM search results.
+    try {
+      const wikiUrl = new URL('https://en.wikipedia.org/w/api.php');
+      wikiUrl.search = new URLSearchParams({ action: 'query', list: 'search', srsearch: `restaurants in ${destinationName}`, srnamespace: '0', srlimit: '30', format: 'json' });
+      const wikiResponse = await fetch(wikiUrl, { headers: { 'User-Agent': 'NexoTripPlanner/1.0 (open-data travel planner)' }, signal: AbortSignal.timeout(5000) });
+      if (wikiResponse.ok) {
+        const articles = (await wikiResponse.json()).query?.search || [];
+        const targets = articles.filter((article) => /restaurant|hotel|cafe|eatery|diner/i.test(`${article.title} ${article.snippet.replace(/<[^>]*>/g, ' ')}`)).slice(0, 6);
+        for (const article of targets) {
+          const title = article.title.replace(/\s+/g, ' ');
+          if (restaurants.some((place) => place.name.toLowerCase() === title.toLowerCase())) continue;
+          const url = new URL(NOMINATIM);
+          url.search = new URLSearchParams({ q: `${title}, ${destinationName}`, format: 'jsonv2', addressdetails: '1', extratags: '1', namedetails: '1', limit: '1' });
+          const [item] = await nominatimJson(url);
+          const place = item && normalizeNominatimPlace(item, 'Restaurant');
+          if (place && place.category === 'restaurant' && Number.isFinite(place.lat) && Number.isFinite(place.lon) && !places.some((entry) => entry.osmType === place.osmType && entry.osmId === place.osmId)) {
+            place.wikipedia = `en:${title}`;
+            place.wikipediaUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replaceAll(' ', '_'))}`;
+            places.push(place);
+            restaurants.push(place);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Wikipedia restaurant discovery unavailable:', error.message);
+    }
+    const wikipediaPlaces = restaurants.filter((place) => place.wikipedia).slice(0, 10);
+    const viewCounts = await Promise.all(wikipediaPlaces.map(async (place) => {
+      const [language, ...titleParts] = place.wikipedia.split(':');
+      const title = encodeURIComponent(titleParts.join(':').replaceAll(' ', '_'));
+      const end = new Date(); end.setUTCDate(end.getUTCDate() - 2);
+      const start = new Date(end); start.setUTCDate(start.getUTCDate() - 30);
+      const stamp = (date) => `${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, '0')}${String(date.getUTCDate()).padStart(2, '0')}00`;
+      try {
+        const response = await fetch(`https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/${encodeURIComponent(language)}.wikipedia.org/all-access/all-agents/${title}/monthly/${stamp(start)}/${stamp(end)}`, { headers: { 'User-Agent': 'NexoTripPlanner/1.0 (open-data travel planner)' }, signal: AbortSignal.timeout(4000) });
+        if (!response.ok) return [place.osmType, place.osmId, 0];
+        const data = await response.json();
+        return [place.osmType, place.osmId, (data.items || []).reduce((total, item) => total + (Number(item.views) || 0), 0)];
+      } catch { return [place.osmType, place.osmId, 0]; }
+    }));
+    const pageviews = new Map(viewCounts.map(([osmType, osmId, views]) => [`${osmType}/${osmId}`, views]));
+    const globalChain = /\b(mcdonald'?s|burger\s*king|pizza\s*hut|kfc|domino'?s|subway|starbucks|taco\s*bell|wendy'?s|popeyes|dunkin'?|five\s*guys|shake\s*shack|chipotle|papa\s*john'?s|little\s*caesars|tim\s*hortons|nando'?s|hard\s*rock\s*cafe)\b/i;
+    for (const place of restaurants) {
+      place.wikipediaViews30d = pageviews.get(`${place.osmType}/${place.osmId}`) || 0;
+      place.isGlobalChain = globalChain.test(`${place.name} ${place.brand || ''}`);
+      const completeness = (place.wikipedia ? 5 : 0) + (place.wikidata ? 2 : 0) + (place.website ? 1 : 0) + (place.openingHours ? 0.75 : 0) + (place.cuisine ? 1 : 0) + (place.brand ? -0.75 : 0);
+      const readership = Math.log10(place.wikipediaViews30d + 1) * 2;
+      place.rankingScore = completeness + readership - (place.isGlobalChain ? 20 : 0);
+      place.recommendationLabel = place.isGlobalChain ? 'Global chain' : place.wikipediaViews30d ? 'Wikipedia readership' : place.cuisine ? 'Cuisine listed' : place.brand ? 'Branded listing' : 'Community-mapped place';
+    }
+    const rankedRestaurants = restaurants.sort((a, b) => b.rankingScore - a.rankingScore || a.name.localeCompare(b.name));
+    const restaurantSet = rankedRestaurants.filter((place) => !place.isGlobalChain);
+    return [...places.filter((place) => place.type !== 'Restaurant'), ...restaurantSet];
+  }
+  return places;
 }
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, maps: 'OpenStreetMap' }));
@@ -145,7 +212,7 @@ app.post('/api/plan', async (req, res) => {
       sources: {
         map: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`,
         lodging: search(`hotels in ${destinationName}`),
-        food: search(`restaurants in ${destinationName}`),
+        food: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`authentic local restaurants in ${destinationName}`)}`,
         events: `https://www.google.com/search?q=${encodeURIComponent(`events in ${destinationName}${startDate ? ` between ${startDate} and ${endDate}` : ''}`)}`,
         issues: `https://www.google.com/search?q=${encodeURIComponent(`travel disruptions advisories ${destinationName}`)}`,
         transit: `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=${lat}%2C${lon}%3B${lat}%2C${lon}`,
