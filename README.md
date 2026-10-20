@@ -10,10 +10,11 @@
   <img alt="Responsive web app" src="https://img.shields.io/badge/experience-responsive-64e2d2?style=flat&labelColor=101719" />
   <img alt="Live data" src="https://img.shields.io/badge/data-live%20places%20%2B%20weather-64e2d2?style=flat&labelColor=101719" />
   <img alt="OpenStreetMap map display" src="https://img.shields.io/badge/map-OpenStreetMap-64e2d2?style=flat&labelColor=101719" />
-  <img alt="Google Maps navigation" src="https://img.shields.io/badge/navigation-Google%20Maps-64e2d2?style=flat&labelColor=101719" />
+  <img alt="Street-level imagery" src="https://img.shields.io/badge/street%20view-Google%20Maps%20URL-64e2d2?style=flat&labelColor=101719" />
+  <img alt="Installable PWA and mobile apps" src="https://img.shields.io/badge/platforms-web%20%7C%20Android%20%7C%20iOS-64e2d2?style=flat&labelColor=101719" />
 </p>
 
-<p align="center"><em>Enter a destination—even a single city name—choose your travel dates, then get a day-by-day plan built around an OpenStreetMap view, Google Maps place details and navigation, and a local forecast.</em></p>
+<p align="center"><em>Enter a destination—even a single city name—choose your travel dates, then get a day-by-day plan built around OpenStreetMap place listings and maps, optional Street View links, and a local forecast.</em></p>
 
 ---
 
@@ -33,10 +34,10 @@ The interface is designed to be explored: compare the weather for each day, scan
 | **Places** | Tables of attractions, museums, parks, and restaurants with addresses and available hours, fees, cuisine, accessibility, contacts, and websites. |
 | **Trip watch** | Event calendars or date-specific searches, forecast risk cues, and links for weather alerts, transport, and local notices. |
 | **Local field guide** | Quick destination-specific searches for local food, neighborhoods, markets, lower-cost activities, day trips, transport, customs, and culture. |
-| **Maps & navigation** | An OpenStreetMap destination map with visible contributor attribution, plus Google Maps links for individual listings and suggested walking routes. |
+| **Maps & navigation** | OpenStreetMap destination and place links with visible attribution, walking directions, and Street View links where imagery is available. |
 | **Useful links** | Destination maps, restaurant searches, accommodation searches, and transit directions. |
 
-The dark, responsive interface uses a restrained cyan accent and a custom geometric Nexo logo in the header and browser tab.
+The dark, responsive interface uses a restrained cyan accent and a custom geometric Nexo logo. Nexo ships as a responsive website, an installable Progressive Web App (PWA), and Capacitor-based Android and iOS app projects from the same web experience.
 
 ## Accessibility & screen sizes
 
@@ -62,7 +63,7 @@ Try one of the included destination examples for a quick start. Forecast dates a
 
 ## Run it locally
 
-**You’ll need:** Node.js 20 or newer, npm, an internet connection, and a Google Maps Platform API key with Places API (New) enabled. Google may require billing for API access. Keep the key on the server; never put it in frontend code.
+**You’ll need:** Node.js 22 or newer, npm, and an internet connection. Destination and place data use public OpenStreetMap services; no Google API key is required.
 
 ```sh
 npm install
@@ -72,16 +73,39 @@ npm run dev
 
 Open the address printed by Vite, usually [http://localhost:5173](http://localhost:5173). The development command starts both the web interface and its API server. Vite forwards `/api` requests to the local Node service.
 
-Create a key in the [Google Maps Platform Console](https://console.cloud.google.com/google/maps-apis), enable **Places API (New)**, and restrict the key to the Places API. Put the key in `.env` as the value of `GOOGLE_MAPS_API_KEY`. The local server loads it from `.env`; the file is ignored by Git and the key is never sent to the browser.
-
-## Production build
+## Website deployment
 
 ```sh
+npm install
+cp .env.example .env
 npm run build
-npm run preview
+npm start
 ```
 
-The compiled frontend is written to `dist/`. For deployment, run `server.js` as a Node service and route `/api` requests to that service. The included Vite proxy is intended for local development.
+The Node service serves the compiled website and its `/api` trip-planning endpoint from one origin. Set `PORT` in the hosting environment. This same-origin deployment is the simplest setup. If you host the website and API separately, build the website with `VITE_API_BASE_URL=https://api.example.com` and set `CORS_ALLOWED_ORIGINS=https://www.example.com` on the API server. Serve the website over HTTPS so browsers can install it as a PWA.
+
+## Install the website as an app
+
+Nexo includes a web app manifest, platform icons, and a service worker for caching the app shell. On Android, open the HTTPS website in Chrome and choose **Install app**. On iPhone or iPad, open it in Safari, tap **Share**, then **Add to Home Screen**. Trip planning still needs an internet connection.
+
+## Android and iOS apps
+
+Capacitor wraps the same built web experience in native Android and iOS projects. Native apps call the separately hosted Nexo API over HTTPS; they do not need a Google API key for trip planning. Configure the public API origin before each mobile build:
+
+```sh
+VITE_API_BASE_URL=https://api.example.com npm run build:mobile
+```
+
+Replace `https://api.example.com` with the HTTPS origin running `server.js`. Then open the native projects in Android Studio or Xcode:
+
+```sh
+npm run cap:open:android
+npm run cap:open:ios
+```
+
+The generated projects live in `android/` and `ios/`. Android builds require Android Studio and an Android SDK. iOS builds require macOS and Xcode. This project has the native shells and icons scaffolded; build and signing still happen in Android Studio and Xcode. Capacitor 8 also requires Node.js 22 or newer; the iOS project needs Xcode 26 or newer, and Android Studio 2025.2.1 or newer. Signing, store listings, screenshots, privacy disclosures, and developer accounts are needed to publish the apps.
+
+After changing web code, rebuild and sync native assets with `VITE_API_BASE_URL=https://api.example.com npm run build:mobile`. The app ID `com.nexo.tripplanner` is provisional; choose an ID you control before store submission.
 
 ## Accessibility and responsive checks
 
@@ -95,12 +119,12 @@ The Playwright suite checks keyboard skip navigation, labeled planner fields, WC
 
 ## How the data works
 
-- **Google Maps Places API** resolves destinations and provides venue locations, opening hours, contact details, and Google Maps navigation links.
-- **OpenStreetMap** supplies the embedded destination map. Its attribution links to the OpenStreetMap copyright page; the embedded map is loaded from openstreetmap.org.
+- **OpenStreetMap Nominatim** resolves destinations and searches for nearby attractions, museums, parks, and restaurants. The embedded map and place links use OpenStreetMap with visible attribution.
+- **Street View** is opened as a Google Maps URL at the destination coordinates. Google documents Maps URLs as usable without an API key; imagery depends on local coverage.
 - **Open-Meteo** provides the daily and hourly forecast for the destination coordinates.
 - **City calendars and live search links** help you check events, local experiences, and travel notices for your dates.
 
-Nexo doesn’t book travel, reserve tables, or confirm event tickets. Event listings and transport notices open live sources because they can change quickly. Weather cues are planning signals, not official severe-weather alerts. Google Maps place details may be incomplete or out of date, so confirm opening times, prices, and availability with the provider before you go. OpenStreetMap tiles are served under the OpenStreetMap Foundation tile usage policy; for high-traffic production deployment, choose a suitable hosted tile provider.
+Nexo doesn’t book travel, reserve tables, or confirm event tickets. Event listings and transport notices open live sources because they can change quickly. Weather cues are planning signals, not official severe-weather alerts. OpenStreetMap details may be incomplete or out of date, so confirm opening times, prices, and availability with the provider before you go. Public Nominatim has a one-request-per-second usage limit, which Nexo observes; for high-traffic production deployment, use an appropriately hosted provider. OpenStreetMap tiles are served under the OpenStreetMap Foundation tile usage policy.
 
 ## Project map
 
@@ -108,11 +132,25 @@ Nexo doesn’t book travel, reserve tables, or confirm event tickets. Event list
 nexo-prototype/
 ├── index.html             # App shell, metadata, and logo reference
 ├── package.json           # Project scripts and dependencies
+├── capacitor.config.json  # Shared Android and iOS app identity
 ├── public/
-│   └── nexo-mark.svg      # Custom logo and browser tab icon
-├── server.js              # Destination, venue, and forecast API
-├── vite.config.js         # Local API proxy
-├── playwright.config.js   # Isolated browser and API setup for accessibility checks
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── icon-maskable-512.png
+│   ├── icons/              # Apple touch icon
+│   ├── manifest.webmanifest
+│   ├── sw.js              # Offline app shell cache
+│   └── nexo-mark.svg      # Logo and browser tab icon
+├── resources/
+│   ├── icon.svg            # Editable native app icon source
+│   └── icon.png            # 1024 px native icon source
+├── server.js              # Website host and destination, venue, and forecast API
+├── vite.config.js          # Development and preview API proxy
+├── android/                # Android Studio project
+├── ios/                    # Xcode project
+├── scripts/
+│   └── build-mobile.mjs   # Requires a public HTTPS API URL
+├── playwright.config.js    # Isolated browser and API setup for accessibility checks
 ├── src/
 │   ├── main.js            # Form flow, guide generation, itinerary, and tables
 │   └── styles.css         # Responsive visual system

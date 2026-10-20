@@ -6,16 +6,26 @@
   "scripts": {
     "dev": "concurrently -k -n api,web \"node server.js\" \"vite\"",
     "build": "vite build",
-    "preview": "vite preview",
-    "test:a11y": "playwright test"
+    "preview": "concurrently -k -n api,web \"node server.js\" \"vite preview\"",
+    "test:a11y": "playwright test",
+    "start": "node server.js",
+    "cap:sync": "cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
+    "build:mobile": "node scripts/build-mobile.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.64.1",
     "concurrently": "^9.2.1",
     "vite": "^6.4.1"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
     "dotenv": "^18.0.8",
     "express": "^5.1.0"
   }

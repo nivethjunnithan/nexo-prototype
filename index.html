@@ -1,17 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#080a0c" />
 <meta name="description" content="Nexo builds detailed destination guides and date-specific itineraries with live place and weather data." /><title>Nexo — your trip, in motion</title>
 <link rel="icon" type="image/svg+xml" href="/nexo-mark.svg" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
 <a class="skip-link" href="#mainContent">Skip to trip planner</a>
 <div class="shell">
-<header class="topbar"><div class="brand"><img class="brand-mark" src="/nexo-mark.svg" alt="" aria-hidden="true" /><span class="brand-name">Nexo</span><em>PREVIEW 01</em></div><div class="top-right"><span class="status"><i class="dot"></i> SYSTEM READY</span><button class="top-link" id="about">About Nexo ↗</button></div></header>
+<header class="topbar"><div class="brand"><img class="brand-mark" src="/nexo-mark.svg" alt="" aria-hidden="true" /><span class="brand-name">Nexo</span><em>YOUR PLACE. YOUR PLAN.</em></div><div class="top-right"><span class="status"><i class="dot"></i> SYSTEM READY</span><button class="top-link" id="installApp" type="button" hidden>Install Nexo</button><button class="top-link" id="about">About Nexo ↗</button></div></header>
 <main id="mainContent" tabindex="-1">
 <section class="hero"><div class="eyebrow">A new way through the internet</div><h1>Start with what<br/>you <span>want to do.</span></h1><p>Choose a destination and dates. Nexo builds a detailed, day-by-day itinerary with local places, hourly weather, events to explore, and practical trip checks.</p>
 <div class="composer-wrap"><form class="composer" id="intentForm"><div class="trip-input-grid"><label class="trip-field destination-field"><span>WHERE TO?</span><input id="destination" name="destination" autocomplete="off" placeholder="Munich, Copenhagen, Kyoto…" required /></label><label class="trip-field"><span>ARRIVAL</span><input id="startDate" name="startDate" type="date" aria-describedby="plannerHint" required /></label><label class="trip-field"><span>TRIP LENGTH</span><div class="duration-control"><input id="duration" name="duration" type="number" min="1" max="16" value="3" inputmode="numeric" aria-describedby="durationHint" required /><span aria-hidden="true">days</span></div></label></div><label class="trip-field interests-field"><span>WHAT DO YOU LIKE? <small>OPTIONAL</small></span><input id="interests" name="interests" autocomplete="off" placeholder="Food markets, museums, local neighborhoods, relaxed pace…" /></label><div class="composer-foot"><span class="hint" id="plannerHint">Forecasts cover up to 16 days ahead. <span class="sr-only" id="durationHint">Choose from 1 to 16 days.</span></span><button class="run-btn" type="submit" id="submitBtn">Build my guide <span class="arrow" aria-hidden="true">↗</span></button></div></form><div class="examples" role="group" aria-label="Example trips"><span class="examples-label">TRY A TRIP</span><button class="chip" type="button" data-place="Munich" data-interest="museums, Bavarian food, relaxed pace" data-days="3">Munich · 3 days</button><button class="chip" type="button" data-place="Copenhagen" data-interest="design, coffee, waterfront walks" data-days="2">Copenhagen · 2 days</button><button class="chip" type="button" data-place="Lisbon" data-interest="food, viewpoints, history" data-days="4">Lisbon · 4 days</button></div></div>

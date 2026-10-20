@@ -1,9 +1,28 @@
 import express from 'express';
 import 'dotenv/config';
+import { resolve } from 'node:path';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
-const GOOGLE_PLACES = 'https://places.googleapis.com/v1/places:searchText';
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+let nominatimQueue = Promise.resolve();
+let lastNominatimRequest = 0;
+
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  const allowedOrigins = new Set([
+    'capacitor://localhost', 'http://localhost', 'https://localhost', 'ionic://localhost',
+    ...(process.env.CORS_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean)
+  ]);
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(origin && !allowedOrigins.has(origin) ? 403 : 204);
+  next();
+});
 app.use(express.json({ limit: '16kb' }));
 
 function extractDestination(intent) {
@@ -24,45 +43,67 @@ function extractDestination(intent) {
 }
 
 async function getJson(url, options = {}) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(18000), ...options });
+  const response = await fetch(url, { signal: AbortSignal.timeout(25000), ...options });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error?.message || `Upstream service returned ${response.status}`);
+  if (!response.ok) throw new Error(body.error?.message || body.error || `Upstream service returned ${response.status}`);
   return body;
 }
-const placeFieldMask = 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.types,places.nationalPhoneNumber,places.websiteUri,places.regularOpeningHours,places.priceLevel,places.accessibilityOptions,places.googleMapsUri,places.addressComponents';
-async function googlePlaceSearch(textQuery, location, radius = 25000) {
-  const body = { textQuery, pageSize: 20 };
-  if (location && Number.isFinite(location.lat) && Number.isFinite(location.lon) && (location.lat !== 0 || location.lon !== 0)) {
-    body.locationBias = { circle: { center: { latitude: location.lat, longitude: location.lon }, radius } };
-  }
-  return getJson(GOOGLE_PLACES, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY, 'X-Goog-FieldMask': placeFieldMask },
-    body: JSON.stringify(body)
+
+function nominatimJson(url) {
+  const request = nominatimQueue.then(async () => {
+    const delay = Math.max(0, 1100 - (Date.now() - lastNominatimRequest));
+    if (delay) await new Promise((resolveDelay) => setTimeout(resolveDelay, delay));
+    lastNominatimRequest = Date.now();
+    return getJson(url, { headers: { 'User-Agent': 'NexoTripPlanner/1.0 (travel itinerary application)' } });
   });
+  nominatimQueue = request.catch(() => {});
+  return request;
 }
-function normalizeGooglePlace(item, type) {
-  const types = item.types || [];
-  const openingHours = item.regularOpeningHours?.weekdayDescriptions?.join('; ') || null;
+
+async function geocode(query) {
+  const url = new URL(NOMINATIM);
+  url.search = new URLSearchParams({ q: query, format: 'jsonv2', addressdetails: '1', limit: '1' });
+  const results = await nominatimJson(url);
+  return results[0] || null;
+}
+
+function normalizeNominatimPlace(item, type) {
+  if (!item.name) return null;
+  const isFood = type === 'Restaurant';
   return {
-    name: item.displayName?.text || '',
+    name: item.name,
     type,
-    category: item.primaryType || types[0] || '',
-    googlePlaceId: item.id || null,
-    lat: Number(item.location?.latitude), lon: Number(item.location?.longitude),
-    address: item.formattedAddress || '',
-    openingHours,
-    website: item.websiteUri || null,
-    phone: item.nationalPhoneNumber || null,
-    cuisine: types.filter((value) => ['restaurant', 'cafe', 'bakery', 'bar', 'meal_takeaway'].includes(value)).join('; ') || null,
+    category: item.type || item.category || 'place',
+    osmType: item.osm_type,
+    osmId: item.osm_id,
+    lat: Number(item.lat), lon: Number(item.lon),
+    address: item.display_name || null,
+    openingHours: null,
+    website: null,
+    phone: null,
+    cuisine: isFood ? item.type : null,
     fee: null,
-    wheelchair: item.accessibilityOptions?.wheelchairAccessibleEntrance === true ? 'Wheelchair-accessible entrance' : null,
-    googleMapsUri: item.googleMapsUri || null,
-    googleTypes: types
+    wheelchair: null,
+    osmUrl: `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`
   };
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+async function getNearbyPlaces(destinationName) {
+  const unique = new Map();
+  const categories = [['attraction', 'Attraction'], ['museums', 'Museum & culture'], ['parks', 'Park & gardens'], ['restaurants', 'Restaurant']];
+  for (const [query, type] of categories) {
+    const url = new URL(NOMINATIM);
+    url.search = new URLSearchParams({ q: `${query} in ${destinationName}`, format: 'jsonv2', addressdetails: '1', limit: '16' });
+    const results = await nominatimJson(url);
+    for (const item of results) {
+      const place = normalizeNominatimPlace(item, type);
+      if (place && Number.isFinite(place.lat) && Number.isFinite(place.lon)) unique.set(`${place.osmType}/${place.osmId}`, place);
+    }
+  }
+  return [...unique.values()];
+}
+
+app.get('/api/health', (_req, res) => res.json({ ok: true, maps: 'OpenStreetMap' }));
 
 app.post('/api/plan', async (req, res) => {
   const intent = typeof req.body?.intent === 'string' ? req.body.intent.trim() : '';
@@ -74,72 +115,58 @@ app.post('/api/plan', async (req, res) => {
   const endDate = startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? (() => { const date = new Date(`${startDate}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + Math.max(0, durationDays - 1)); return date.toISOString().slice(0, 10); })() : '';
   if ((!destination && !intent) || intent.length > 500 || destinationInput.length > 120) return res.status(400).json({ error: 'Enter a destination and optional travel preferences.' });
   if (!destination) return res.status(422).json({ error: 'I could not identify a place. Try entering just a city name, such as “Copenhagen”.' });
-  if (!process.env.GOOGLE_MAPS_API_KEY) return res.status(503).json({ error: 'Add a Google Maps Platform API key with Places API enabled to the GOOGLE_MAPS_API_KEY environment variable, then restart Nexo.' });
   if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 16) return res.status(400).json({ error: 'Trip length must be between 1 and 16 days.' });
   if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return res.status(400).json({ error: 'Choose a valid arrival date.' });
 
   try {
-    const cityResult = await googlePlaceSearch(destination);
-    const city = cityResult.places?.[0];
+    const city = await geocode(destination);
     if (!city) return res.status(404).json({ error: `I could not find “${destination}”. Try a nearby city, region, or country name.` });
-    const lat = Number(city.location?.latitude), lon = Number(city.location?.longitude);
-    const destinationName = city.displayName?.text || destination;
-    const searchLocal = async (query, type) => {
-      const found = await googlePlaceSearch(`${query} in ${destinationName}`, { lat, lon });
-      return (found.places || []).map((place) => normalizeGooglePlace(place, type)).filter((place) => place.name && Number.isFinite(place.lat) && Number.isFinite(place.lon));
-    };
-    const [attractions, museums, parks, food] = await Promise.all([
-      searchLocal('tourist attractions', 'Attraction'),
-      searchLocal('museums and art galleries', 'Museum & culture'),
-      searchLocal('parks and gardens', 'Park & gardens'),
-      searchLocal('restaurants and cafes', 'Restaurant')
-    ]);
-    const unique = new Map();
-    const placeTokens = (name) => name.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter((word) => word.length > 4 && !['museum', 'castle', 'palace', 'house', 'garden', 'gallery'].includes(word));
-    for (const place of [...attractions, ...museums, ...parks, ...food]) {
-      const key = place.name.toLocaleLowerCase();
-      const tokens = placeTokens(place.name);
-      const duplicateKey = [...unique.entries()].find(([, existing]) => {
-        if (place.type === 'Restaurant' !== (existing.type === 'Restaurant')) return false;
-        const sharedName = tokens.some((token) => placeTokens(existing.name).includes(token));
-        const distanceKm = 111 * Math.hypot(place.lat - existing.lat, (place.lon - existing.lon) * Math.cos(lat * Math.PI / 180));
-        return sharedName && distanceKm < 0.05;
-      })?.[0];
-      const existingKey = unique.has(key) ? key : duplicateKey;
-      if (!existingKey) unique.set(key, place);
-      else if (!unique.get(existingKey).openingHours && place.openingHours) unique.set(existingKey, place);
-    }
-    const allPlaces = [...unique.values()];
+    const lat = Number(city.lat), lon = Number(city.lon);
+    const destinationName = city.name || destination;
+    const placesPromise = getNearbyPlaces(destinationName).catch((error) => {
+      console.error('OpenStreetMap place lookup failed:', error.message);
+      return [];
+    });
     const weatherUrl = new URL('https://api.open-meteo.com/v1/forecast');
     weatherUrl.search = new URLSearchParams({ latitude: String(lat), longitude: String(lon), daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,uv_index_max,sunrise,sunset', hourly: 'temperature_2m,apparent_temperature,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,uv_index', forecast_days: '16', timezone: 'auto' });
-    const weather = await getJson(weatherUrl).catch(() => null);
+    const [allPlaces, weather] = await Promise.all([placesPromise, getJson(weatherUrl).catch(() => null)]);
     const lowered = `${intent} ${interests}`.toLowerCase();
     const style = /museum|art|history|culture|architecture/.test(lowered) ? 'culture' : /nature|outdoor|garden|park|hike/.test(lowered) ? 'outdoors' : /food|eat|restaurant|cafe|culinary/.test(lowered) ? 'food' : /child|children|kid|family/.test(lowered) ? 'family' : /relax|slow|quiet|easy/.test(lowered) ? 'relaxed' : 'discovery';
+    const query = encodeURIComponent(destinationName);
+    const search = (text) => `https://www.openstreetmap.org/search?query=${encodeURIComponent(text)}`;
+    const countryCode = city.address?.country_code?.toLowerCase() || null;
     res.json({
-      destination: destinationName, displayName: city.formattedAddress || destinationName, lat, lon,
-      destinationType: city.primaryType || 'place', address: city.formattedAddress || destinationName,
-      countryCode: city.addressComponents?.find((component) => component.types?.includes('country'))?.shortText?.toLowerCase() || null,
+      destination: destinationName, displayName: city.display_name || destinationName, lat, lon,
+      destinationType: city.type || city.class || 'place', address: city.display_name || destinationName, countryCode,
       attractions: allPlaces.filter((place) => place.type !== 'Restaurant'),
       food: allPlaces.filter((place) => place.type === 'Restaurant'),
       style, interests, startDate: startDate || null, durationDays,
       weather: weather?.daily || null, hourly: weather?.hourly || null, weatherTimezone: weather?.timezone || null,
       sources: {
-        map: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lon}`)}`,
-        lodging: `https://www.google.com/travel/search?q=${encodeURIComponent(`hotels in ${destination}`)}`,
-        food: `https://www.google.com/maps/search/${encodeURIComponent(`restaurants in ${destination}`)}`,
-        events: `https://www.google.com/search?q=${encodeURIComponent(`events in ${destination}${startDate ? ` between ${startDate} and ${endDate}` : ''}`)}`,
-        issues: `https://www.google.com/search?q=${encodeURIComponent(`travel disruptions advisories ${destination}`)}`,
-        transit: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=transit`,
-        weatherAlerts: city.address?.country_code === 'de' ? 'https://www.dwd.de/EN/weather/warnings/warnings_node.html' : `https://www.google.com/search?q=${encodeURIComponent(`weather warnings ${destination}`)}`,
-        cityEvents: (city.address?.country_code === 'de' && /munich|münchen/i.test(destination)) ? 'https://www.muenchen.de/en/events' : null,
-        copyright: 'https://developers.google.com/maps/documentation/places/web-service/policies'
+        map: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}`,
+        lodging: search(`hotels in ${destinationName}`),
+        food: search(`restaurants in ${destinationName}`),
+        events: `https://www.google.com/search?q=${encodeURIComponent(`events in ${destinationName}${startDate ? ` between ${startDate} and ${endDate}` : ''}`)}`,
+        issues: `https://www.google.com/search?q=${encodeURIComponent(`travel disruptions advisories ${destinationName}`)}`,
+        transit: `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=${lat}%2C${lon}%3B${lat}%2C${lon}`,
+        weatherAlerts: countryCode === 'de' ? 'https://www.dwd.de/EN/weather/warnings/warnings_node.html' : `https://www.google.com/search?q=${encodeURIComponent(`weather warnings ${destinationName}`)}`,
+        cityEvents: (countryCode === 'de' && /munich|münchen/i.test(destinationName)) ? 'https://www.muenchen.de/en/events' : null,
+        streetView: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat}%2C${lon}`,
+        copyright: 'https://www.openstreetmap.org/copyright'
       },
       generatedAt: new Date().toISOString()
     });
   } catch (error) {
     console.error('Plan request failed:', error.message);
-    res.status(502).json({ error: `Google Maps place search is unavailable: ${error.message}` });
+    res.status(502).json({ error: `OpenStreetMap destination lookup is unavailable: ${error.message}` });
   }
 });
 
-app.listen(PORT, () => console.log(`Nexo API ready on http://localhost:${PORT}`));
+const distDirectory = resolve('dist');
+app.use(express.static(distDirectory, { index: false }));
+app.get(/.*/, (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(resolve(distDirectory, 'index.html'), (error) => { if (error) next(error); });
+});
+
+app.listen(PORT, () => console.log(`Nexo web + API ready on http://localhost:${PORT}`));

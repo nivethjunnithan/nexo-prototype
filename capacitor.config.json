@@ -1,0 +1,9 @@
+{
+  "appId": "com.nexo.tripplanner",
+  "appName": "Nexo",
+  "webDir": "dist",
+  "backgroundColor": "#080a0c",
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
