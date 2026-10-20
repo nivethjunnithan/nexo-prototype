@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Nexo — Your place. Your plan.",
   "short_name": "Nexo",
   "description": "Plan a city trip with a personalized itinerary, local places, and date-specific weather.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "prefer_related_applications": false,
   "orientation": "portrait-primary",
@@ -12,8 +12,8 @@
   "theme_color": "#080a0c",
   "categories": ["travel", "lifestyle"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

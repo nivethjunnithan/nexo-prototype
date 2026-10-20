@@ -84,6 +84,18 @@ npm start
 
 The Node service serves the compiled website and its `/api` trip-planning endpoint from one origin. Set `PORT` in the hosting environment. This same-origin deployment is the simplest setup. If you host the website and API separately, build the website with `VITE_API_BASE_URL=https://api.example.com` and set `CORS_ALLOWED_ORIGINS=https://www.example.com` on the API server. Serve the website over HTTPS so browsers can install it as a PWA.
 
+## Publish the website on GitHub Pages
+
+GitHub Pages publishes the static website. The trip planner still needs the Node API, so deploy this repository as a Node web service on a host such as Render first:
+
+1. Create a Node web service from this GitHub repository. Use `npm ci && npm run build` for the build command and `npm start` for the start command. Node.js 22 or newer is required.
+2. In the API host's environment settings, set `CORS_ALLOWED_ORIGINS` to `https://nivethjunnithan.github.io`. No Google Maps key is needed.
+3. In this GitHub repository, open **Settings → Secrets and variables → Actions → Variables** and add `VITE_API_BASE_URL` with the public HTTPS URL of the API service.
+4. Open **Settings → Pages** and set the publishing source to **GitHub Actions**.
+5. Push to `main`, or manually run **Deploy Nexo to GitHub Pages** from the **Actions** tab.
+
+The included workflow builds and deploys the site at `https://nivethjunnithan.github.io/nexo-prototype/`. GitHub Pages does not run the Node API, so keep the API service running separately. GitHub documents Pages as static hosting and supports custom build-and-deploy workflows through Actions.
+
 ## Install the website as an app
 
 Nexo includes a web app manifest, platform icons, and a service worker for caching the app shell. On Android, open the HTTPS website in Chrome and choose **Install app**. On iPhone or iPad, open it in Safari, tap **Share**, then **Add to Home Screen**. Trip planning still needs an internet connection.

@@ -8,6 +8,7 @@ const allowedNgrokHosts = process.env.NEXO_NGROK_HOST?.trim()
   : [];
 
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || '/',
   server: { proxy: apiProxy, allowedHosts: allowedNgrokHosts },
   preview: { proxy: apiProxy, allowedHosts: allowedNgrokHosts }
 });

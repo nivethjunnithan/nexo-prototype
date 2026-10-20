@@ -334,7 +334,7 @@ document.addEventListener('click', (event) => {
 
 // Cache the web app shell for repeat visits and basic offline startup.
 if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {}));
 }
 
 let pendingInstallPrompt;

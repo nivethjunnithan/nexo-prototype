@@ -169,4 +169,4 @@ app.get(/.*/, (req, res, next) => {
   res.sendFile(resolve(distDirectory, 'index.html'), (error) => { if (error) next(error); });
 });
 
-app.listen(PORT, () => console.log(`Nexo web + API ready on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Nexo web + API ready on http://localhost:${PORT}`));

@@ -1,5 +1,6 @@
 const CACHE_NAME = 'nexo-shell-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/nexo-mark.svg', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png'];
+const APP_BASE = new URL('./', self.location).pathname;
+const APP_SHELL = [APP_BASE, 'index.html', 'manifest.webmanifest', 'nexo-mark.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'].map((path) => new URL(path, self.location).pathname);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -19,9 +20,9 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then((response) => {
       const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+      caches.open(CACHE_NAME).then((cache) => cache.put(new URL('index.html', self.location), copy));
       return response;
-    }).catch(() => caches.match('/index.html')));
+    }).catch(() => caches.match(new URL('index.html', self.location))));
     return;
   }
 
