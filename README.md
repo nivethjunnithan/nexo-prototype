@@ -26,16 +26,16 @@ The interface is designed to be explored: compare the weather for each day, scan
 
 ## What’s inside
 
-| Area | What you get |
-| --- | --- |
-| **Trip overview** | Destination, dates, length, local time zone, planning style, and mapped listing count in one glance. |
-| **Custom itinerary** | A day-by-day schedule with suggested times, nearby stops, opening-hour-aware picks, map links, and walking routes. |
-| **Weather** | Daily and hourly conditions, temperature and feels-like, rain chance and amount, wind and gusts, humidity, UV, sunrise, and sunset. |
-| **Places** | Tables of attractions, museums, parks, and restaurants with addresses and available hours, fees, cuisine, accessibility, contacts, and websites. |
-| **Trip watch** | Event calendars or date-specific searches, forecast risk cues, and links for weather alerts, transport, and local notices. |
-| **Local field guide** | Quick destination-specific searches for local food, neighborhoods, markets, lower-cost activities, day trips, transport, customs, and culture. |
-| **Maps & navigation** | OpenStreetMap destination and place links with visible attribution, walking directions, and Street View links where imagery is available. |
-| **Useful links** | Destination maps, restaurant searches, accommodation searches, and transit directions. |
+| Area                  | What you get                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Trip overview**     | Destination, dates, length, local time zone, planning style, and mapped listing count in one glance.                                             |
+| **Custom itinerary**  | A day-by-day schedule with suggested times, nearby stops, opening-hour-aware picks, map links, and walking routes.                               |
+| **Weather**           | Daily and hourly conditions, temperature and feels-like, rain chance and amount, wind and gusts, humidity, UV, sunrise, and sunset.              |
+| **Places**            | Tables of attractions, museums, parks, and restaurants with addresses and available hours, fees, cuisine, accessibility, contacts, and websites. |
+| **Trip watch**        | Event calendars or date-specific searches, forecast risk cues, and links for weather alerts, transport, and local notices.                       |
+| **Local field guide** | Quick destination-specific searches for local food, neighborhoods, markets, lower-cost activities, day trips, transport, customs, and culture.   |
+| **Maps & navigation** | OpenStreetMap destination and place links with visible attribution, walking directions, and Street View links where imagery is available.        |
+| **Useful links**      | Destination maps, restaurant searches, accommodation searches, and transit directions.                                                           |
 
 The dark, responsive interface uses a restrained cyan accent and a custom geometric Nexo logo. Nexo ships as a responsive website, an installable Progressive Web App (PWA), and Capacitor-based Android and iOS app projects from the same web experience.
 
@@ -172,4 +172,4 @@ nexo-prototype/
 
 ---
 
-<p align="center"><strong>Nexo</strong> · <em>Find your way into a place.</em></p>
+<p align="center"><strong>Nexo</strong> · <em>Find your way into a place. </em></p>
